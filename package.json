@@ -1,4 +1,7 @@
 {
-  "name": "mu-parser",
-  "packageManager": "yarn@4.9.2"
+  "name": "mu-parser-workspace",
+  "packageManager": "yarn@4.9.2",
+  "workspaces": [
+    "packages/*"
+  ]
 }
