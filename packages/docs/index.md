@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: "mu-parser"
+  name: "&micro;-parser"
   text: "TypeScript-first parser combinators"
   tagline: Build type-safe parsers that validate unknown data and transform it into well-typed objects
   actions:
