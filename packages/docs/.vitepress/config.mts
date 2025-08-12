@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  base: "/mu-parser-workspace",
+  base: "/mu-parser",
   title: "mu-parser",
   description: "TypeScript-first parser combinator library for runtime data validation and parsing",
   themeConfig: {
