@@ -2,9 +2,7 @@
 
 Advanced functions for combining, transforming, and composing parsers.
 
-## Core Combinators
-
-### `map`
+## `map`
 
 Transform the result of a successful parse.
 
@@ -30,7 +28,7 @@ const processedParser = parseStr
 parse(processedParser, "  Hello World  "); // "hello-world"
 ```
 
-### `orElse`
+## `orElse`
 
 Try an alternative parser if the current one fails.
 
@@ -57,7 +55,7 @@ const withDefault = parseStr.orElse(success("default"));
 parse(withDefault, 42); // "default"
 ```
 
-### `andThen`
+## `andThen`
 
 Chain parsers sequentially, where the next parser depends on the previous result.
 
@@ -88,7 +86,7 @@ const parseUserById = parseNum.andThen((id) => {
 });
 ```
 
-### `optional`
+## `optional`
 
 Make any parser optional (returns `undefined` instead of failing).
 
@@ -111,93 +109,115 @@ const userParser = combine(({ bind }) => ({
 }));
 ```
 
-## Advanced Combinators
+## `combine`
 
-### Validation Combinators
+Build complex parsers by combining multiple simpler parsers.
 
 ```typescript
-// Range validation
-const parseRange = (min: number, max: number) =>
-  parseNum.andThen((n) =>
-    n >= min && n <= max
-      ? success(n)
-      : fail(`Must be between ${min} and ${max}`),
-  );
-
-// Length validation
-const parseMinLength = (minLen: number) =>
-  parseStr.andThen((s) =>
-    s.length >= minLen
-      ? success(s)
-      : fail(`Must be at least ${minLen} characters`),
-  );
-
-// Pattern validation
-const parsePattern = (regex: RegExp, message: string) =>
-  parseStr.andThen((s) => (regex.test(s) ? success(s) : fail(message)));
-
-const parseEmail = parsePattern(
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  "Invalid email format",
-);
+function combine<T>(parsers: (ctx: CombineCtx) => T): Parser<T>;
 ```
 
-### Transformation Combinators
+The `combine` function is the primary way to build complex parsers from simpler ones. It provides a context with a `bind` method that extracts values from parsers within the same scope.
+
+**Example:**
 
 ```typescript
-// Parse and transform
-const parseDate = parseStr.andThen((s) => {
-  const date = new Date(s);
-  return isNaN(date.getTime()) ? fail("Invalid date string") : success(date);
+// Basic object parsing
+const userParser = combine(({ bind }) => {
+  const name = bind(parseField("name", parseStr));
+  const age = bind(parseField("age", parseNum));
+  const email = bind(parseField("email", parseStr).optional);
+
+  return { name, age, email };
 });
 
-// Parse with normalization
-const parseNormalizedString = parseStr
-  .map((s) => s.trim())
-  .map((s) => s.toLowerCase())
-  .andThen((s) => (s.length > 0 ? success(s) : fail("String cannot be empty")));
+// Conditional logic within combine
+const configParser = combine(({ bind }) => {
+  const env = bind(parseField("env", parseStr));
+  const port = bind(parseField("port", parseNum));
 
-// Type coercion
-const parseStringAsNumber = parseStr.andThen((s) => {
-  const num = Number(s);
-  return isNaN(num) ? fail("Cannot convert to number") : success(num);
+  // You can use regular JavaScript logic
+  const isDev = env === "development";
+  const defaultPort = isDev ? 3000 : 80;
+
+  return {
+    env,
+    port: port || defaultPort,
+    isDevelopment: isDev,
+  };
+});
+
+// Nested combine blocks
+const personParser = combine(({ bind }) => {
+  const name = bind(parseField("name", parseStr));
+  const address = bind(
+    parseField(
+      "address",
+      combine(({ bind }) => ({
+        street: bind(parseField("street", parseStr)),
+        city: bind(parseField("city", parseStr)),
+        zipCode: bind(parseField("zipCode", parseStr)),
+      })),
+    ),
+  );
+
+  return { name, address };
 });
 ```
 
-### Conditional Combinators
+**Key Features:**
+
+- **Type Safety**: The result type is automatically inferred from the return statement
+- **Error Propagation**: If any bound parser fails, the entire combine block fails
+- **Scope**: All bound values are available in the same scope for building the result
+- **Flexibility**: You can use any JavaScript logic within the combine block
+
+**Context Object:**
+
+The `bind` function in the context extracts the value from a parser:
 
 ```typescript
-// Conditional parsing based on value
-const parseConditional =
-  <T>(condition: (value: T) => boolean, errorMessage: string) =>
-  (parser: Parser<T>): Parser<T> =>
-    parser.andThen((value) =>
-      condition(value) ? success(value) : fail(errorMessage),
-    );
+interface CombineCtx {
+  bind<R>(parser: Parser<R>): R;
+}
+```
 
-const parsePositive = parseConditional(
-  (n: number) => n > 0,
-  "Must be positive",
-);
+**Advanced Usage:**
 
-const positiveNumberParser = parsePositive(parseNum);
+```typescript
+// Dynamic parsing based on previous results
+const dynamicParser = combine(({ bind }) => {
+  const type = bind(parseField("type", parseStr));
 
-// Multi-branch conditional
-const parseGrade = parseStr.andThen((grade) => {
-  switch (grade.toUpperCase()) {
-    case "A":
-      return success(90);
-    case "B":
-      return success(80);
-    case "C":
-      return success(70);
-    case "D":
-      return success(60);
-    case "F":
-      return success(0);
+  switch (type) {
+    case "user":
+      const userId = bind(parseField("id", parseNum));
+      const userName = bind(parseField("name", parseStr));
+      return { type: "user", id: userId, name: userName };
+
+    case "admin":
+      const adminId = bind(parseField("id", parseNum));
+      const permissions = bind(parseField("permissions", parseList(parseStr)));
+      return { type: "admin", id: adminId, permissions };
+
     default:
-      return fail(`Invalid grade: ${grade}`);
+      // You can bind to fail() to trigger an error
+      return bind(fail(`Unknown type: ${type}`));
   }
+});
+
+// Validation within combine
+const validatedUserParser = combine(({ bind }) => {
+  const name = bind(parseField("name", parseStr));
+  const age = bind(parseField("age", parseNum));
+  const email = bind(parseField("email", parseStr));
+
+  // Validate relationships between fields
+  if (age < 13 && email.includes("@work.")) {
+    return bind(fail("Users under 13 cannot have work emails"));
+  }
+
+  return { name, age, email };
 });
 ```
 
@@ -205,21 +225,7 @@ const parseGrade = parseStr.andThen((grade) => {
 
 ### `oneOf`
 
-Parse one of several literal values:
-
-```typescript
-const oneOf = <T extends readonly (string | number | null | undefined)[]>(
-  ...values: T
-): Parser<T[number]> =>
-  values.reduce(
-    (acc, value) => acc.orElse(parseLit(value)),
-    fail(`Expected one of: ${values.join(", ")}`) as Parser<T[number]>,
-  );
-
-const parseStatus = oneOf("active", "inactive", "pending");
-parse(parseStatus, "active"); // "active"
-parse(parseStatus, "unknown"); // throws error
-```
+TODO
 
 ### `tuple`
 

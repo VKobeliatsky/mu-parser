@@ -46,7 +46,7 @@ interface Person {
   address: Address;
 }
 
-const addressParser = combine(({ bind }): Address => {
+const addressParser = combine<Address>(({ bind }) => {
   const street: = bind(parseField("street", parseStr));
   const city = bind(parseField("city", parseStr));
   const zipCode = bind(parseField("zipCode", parseStr));
@@ -54,7 +54,7 @@ const addressParser = combine(({ bind }): Address => {
   return { street, cite, zipCode };
 });
 
-const personParser = combine(({ bind }): Person => {
+const personParser = combine<Person>(({ bind }) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const address = bind(parseField("address", addressParser));

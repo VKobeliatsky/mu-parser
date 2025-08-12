@@ -48,7 +48,7 @@ interface UserPreferences {
 }
 
 // ✅ Good: Explicit return type
-const parseUserPreferences = combine(({ bind }): UserPreferences => {
+const parseUserPreferences = combine<UserPreferences>(({ bind }) => {
   const theme = bind(
     parseField("theme", parseLit("light").orElse(parseLit("dark"))),
   );
@@ -57,39 +57,11 @@ const parseUserPreferences = combine(({ bind }): UserPreferences => {
 });
 
 // ✅ Good: Explicit return type catches mismatches
-const parseUser = combine(({ bind }): User => {
+const parseUser = combine<User>(({ bind }) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const preferences = bind(parseField("preferences", parseUserPreferences));
   return { name, age, preferences };
-});
-```
-
-## Handle Optional Fields Consistently
-
-Choose a consistent pattern for optional fields:
-
-```typescript
-// ✅ Option 1: Use .optional and provide defaults
-const configParser = combine(({ bind }) => {
-  const host = bind(parseField("host", parseStr));
-  const port = bind(parseField("port", parseNum).optional);
-  const timeout = bind(parseField("timeout", parseNum).optional);
-
-  return {
-    host,
-    port: port ?? 3000, // Default port
-    timeout: timeout ?? 5000, // Default timeout
-  };
-});
-
-// ✅ Option 2: Use orElse with meaningful defaults
-const configParser2 = combine(({ bind }) => {
-  const host = bind(parseField("host", parseStr));
-  const port = bind(parseField("port", parseNum).orElse(success(3000)));
-  const timeout = bind(parseField("timeout", parseNum).orElse(success(5000)));
-
-  return { host, port, timeout };
 });
 ```
 
@@ -142,6 +114,120 @@ const userParser = combine(({ bind }) => ({
 }));
 ```
 
+## Build Custom Primitive Parsers
+
+You can create custom parsers for other primitive types:
+
+### Date Parser
+
+```typescript
+const parseDate = parser((target, ctx) => {
+  if (target instanceof Date) {
+    return target;
+  }
+  if (typeof target === "string") {
+    const date = new Date(target);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+  }
+  throw ctx.parseError("valid date expected");
+});
+
+parse(parseDate, new Date()); // Date object
+parse(parseDate, "2023-12-25"); // Date object
+parse(parseDate, "invalid-date"); // throws ParseError
+```
+
+### BigInt Parser
+
+```typescript
+const parseBigInt = parser((target, ctx) => {
+  if (typeof target === "bigint") {
+    return target;
+  }
+  if (typeof target === "string" || typeof target === "number") {
+    try {
+      return BigInt(target);
+    } catch {
+      throw ctx.parseError("valid bigint expected");
+    }
+  }
+  throw ctx.parseError("bigint expected");
+});
+
+parse(parseBigInt, 123n); // 123n
+parse(parseBigInt, "123"); // 123n
+parse(parseBigInt, 123); // 123n
+```
+
+## Validation Helpers
+
+### Range Validation
+
+```typescript
+const parseRange = (min: number, max: number) =>
+  parseNum.andThen((n) =>
+    n >= min && n <= max
+      ? success(n)
+      : fail(`Number must be between ${min} and ${max}`),
+  );
+
+const parsePercentage = parseRange(0, 100);
+parse(parsePercentage, 50); // 50
+parse(parsePercentage, 150); // throws ParseError: "Number must be between 0 and 100"
+```
+
+### String Length Validation
+
+```typescript
+const parseMinLength = (minLength: number) =>
+  parseStr.andThen((s) =>
+    s.length >= minLength
+      ? success(s)
+      : fail(`String must be at least ${minLength} characters`),
+  );
+
+const parsePassword = parseMinLength(8);
+parse(parsePassword, "password123"); // "password123"
+parse(parsePassword, "short"); // throws ParseError
+```
+
+### Pattern Validation
+
+```typescript
+const parsePattern = (pattern: RegExp, errorMessage: string) =>
+  parseStr.andThen((s) => (pattern.test(s) ? success(s) : fail(errorMessage)));
+
+const parseEmail = parsePattern(
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+  "Invalid email format",
+);
+
+const parsePhoneNumber = parsePattern(
+  /^\d{3}-\d{3}-\d{4}$/,
+  "Phone number must be in format XXX-XXX-XXXX",
+);
+
+parse(parseEmail, "user@example.com"); // "user@example.com"
+parse(parseEmail, "not-an-email"); // throws ParseError: "Invalid email format"
+```
+
+## Union Types
+
+Create parsers for union types:
+
+```typescript
+const parseStatus = parseLit("active")
+  .orElse(parseLit("inactive"))
+  .orElse(parseLit("pending"));
+
+type Status = "active" | "inactive" | "pending";
+
+parse(parseStatus, "active"); // "active" (typed as Status)
+parse(parseStatus, "unknown"); // throws ParseError
+```
+
 ## Error Messages
 
 Write clear, actionable error messages:
@@ -161,63 +247,6 @@ const goodAgeParser = parseNum.andThen((n) => {
 });
 ```
 
-## Organize Parser Modules
-
-Structure your parsers in logical modules:
-
-```typescript
-// parsers/common.ts
-export const parsePositiveNumber = parseNum.andThen((n) =>
-  n > 0 ? success(n) : fail("Must be positive"),
-);
-
-export const parseEmail = parseStr.andThen(validateEmail);
-
-// parsers/user.ts
-import { parsePositiveNumber, parseEmail } from "./common";
-
-export const parseUser = combine(({ bind }) => ({
-  id: bind(parseField("id", parsePositiveNumber)),
-  email: bind(parseField("email", parseEmail)),
-  name: bind(parseField("name", parseNonEmptyString)),
-}));
-
-// parsers/product.ts
-export const parseProduct = combine(({ bind }) => ({
-  id: bind(parseField("id", parsePositiveNumber)),
-  price: bind(parseField("price", parsePositiveNumber)),
-  name: bind(parseField("name", parseNonEmptyString)),
-}));
-```
-
-## Performance Considerations
-
-### Avoid Creating Parsers in Loops
-
-```typescript
-// ❌ Bad: Creates new parsers on each iteration
-function parseItems(expectedCount: number) {
-  return parseList(
-    combine(({ bind }) => {
-      const id = bind(parseField("id", parseNum));
-      // ... other fields
-      return { id };
-    }),
-  );
-}
-
-// ✅ Good: Create parser once, reuse
-const itemParser = combine(({ bind }) => {
-  const id = bind(parseField("id", parseNum));
-  // ... other fields
-  return { id };
-});
-
-function parseItems(expectedCount: number) {
-  return parseList(itemParser);
-}
-```
-
 ## Testing Patterns
 
 Write comprehensive tests for your parsers:
@@ -234,19 +263,11 @@ describe("userParser", () => {
 
   test("rejects invalid email", () => {
     const input = { name: "Alice", age: 30, email: "not-an-email" };
-    const result = parse(userParser, input, (error) => error.reason);
-    expect(result).toBe("Invalid email format");
-  });
-
-  test("provides detailed error paths", () => {
-    const input = {
-      name: "Alice",
-      age: "not-a-number",
-      email: "alice@example.com",
-    };
-    const result = parse(userParser, input, (error) => error);
-    expect(result.path).toEqual(["age"]);
-    expect(result.reason).toBe("number expected");
+    const result = parse(userParser, input, (error) => [
+      error.reason,
+      error.path,
+    ]);
+    expect(result).toBe(["Invalid email format", ["email"]]);
   });
 });
 ```

@@ -26,19 +26,44 @@ pnpm add mu-parser
 ```typescript
 import { parse, parseStr, parseNum, parseField, combine } from "mu-parser";
 
-// Simple parsing
-const name = parse(parseStr, "Alice"); // string
-const age = parse(parseNum, 30); // number
+interface Address {
+  street: string;
+  city: string;
+  zipCode: string;
+}
 
-// Object parsing with validation
-const userParser = combine(({ bind }) => {
-  const name = bind(parseField("name", parseStr));
-  const age = bind(parseField("age", parseNum));
-  return { name, age };
+interface Person {
+  name: string;
+  age: number;
+  address: Address;
+}
+
+const addressParser = combine(({ bind }): Address => {
+  const street: = bind(parseField("street", parseStr));
+  const city = bind(parseField("city", parseStr));
+  const zipCode = bind(parseField("zipCode", parseStr));
+
+  return { street, cite, zipCode };
 });
 
-const user = parse(userParser, { name: "Bob", age: 25 });
-// Result: { name: "Bob", age: 25 } with full type safety
+const personParser = combine(({ bind }): Person => {
+  const name = bind(parseField("name", parseStr));
+  const age = bind(parseField("age", parseNum));
+  const address = bind(parseField("address", addressParser));
+
+  return { name, age, address };
+});
+
+const person = parse(personParser, {
+  name: "John",
+  age: 30,
+  address: {
+    street: "123 Main St",
+    city: "Springfield",
+    zipCode: "12345",
+  },
+});
+// Result: { name: "John", age: 30, address: { ... } } with full type safety
 ```
 
 ## Core Concepts

@@ -70,29 +70,6 @@ parse(usersParser, data, (error) => {
 });
 ```
 
-## Default Values with `orElse`
-
-Provide fallback values when parsing fails:
-
-```typescript
-const safeParser = parseNum.orElse(success(0));
-const result = parse(safeParser, "not a number"); // 0
-```
-
-## Optional Fields
-
-Use `.optional` to make fields optional:
-
-```typescript
-const configParser = combine(({ bind }) => {
-  const host = bind(parseField("host", parseStr));
-  const port = bind(parseField("port", parseNum).optional); // Won't fail if missing
-  return { host, port: port ?? 3000 };
-});
-
-parse(configParser, { host: "localhost" }); // { host: "localhost", port: 3000 }
-```
-
 ## Custom Error Messages
 
 Create parsers with custom error messages:

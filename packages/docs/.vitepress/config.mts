@@ -18,8 +18,7 @@ export default defineConfig({
         {
           text: 'Getting Started',
           items: [
-            { text: 'Installation', link: '/guide/getting-started' },
-            { text: 'Quick Start', link: '/guide/quick-start' },
+            { text: 'Quick Start', link: '/guide/getting-started' },
             { text: 'Core Concepts', link: '/guide/core-concepts' }
           ]
         },
