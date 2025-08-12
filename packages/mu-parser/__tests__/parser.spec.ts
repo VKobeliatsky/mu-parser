@@ -1,29 +1,30 @@
 import { test, expect } from "vitest";
 
-import { parse, combine, str, num, lit, obj, list, field, parseNull, path, success, fail } from "../src/parser";
+import { parse, combine, path, success, fail } from "../src/parser";
+import { parseStr, parseNum, parseLit, parseObj, parseList, parseField, parseNull } from "../src/parsers";
 
 test("parser simple", () => {
-  expect(parse(str, "hello")).toBe("hello");
-  expect(parse(num, 42)).toBe(42);
-  expect(parse(lit("hello"), "hello")).toBe("hello");
+  expect(parse(parseStr, "hello")).toBe("hello");
+  expect(parse(parseNum, 42)).toBe(42);
+  expect(parse(parseLit("hello"), "hello")).toBe("hello");
   expect(parse(parseNull, null)).toBe(null);
-  expect(parse(str.orElse(success("default")), null)).toBe("default");
-  expect(parse(str.optional, null)).toBe(undefined);
+  expect(parse(parseStr.orElse(success("default")), null)).toBe("default");
+  expect(parse(parseStr.optional, null)).toBe(undefined);
 });
 
 test("parser combine", () => {
   expect(parse(combine(({ bind }) => {
-    const name = bind(field("name", str));
-    const age = bind(field("age", num));
+    const name = bind(parseField("name", parseStr));
+    const age = bind(parseField("age", parseNum));
     return `${name} is ${age} years old`;
   }), { name: "Alice", age: 30 })).toEqual("Alice is 30 years old");
 
   expect(parse(combine(({ bind }) => {
-    const name = bind(field("name", str));
-    const age = bind(field("age", num));
-    const hobbies = bind(field("hobbies", list(combine(({ bind }) => {
-      const name = bind(field("name", str));
-      const type = bind(field("type", str).optional);
+    const name = bind(parseField("name", parseStr));
+    const age = bind(parseField("age", parseNum));
+    const hobbies = bind(parseField("hobbies", parseList(combine(({ bind }) => {
+      const name = bind(parseField("name", parseStr));
+      const type = bind(parseField("type", parseStr).optional);
       return { name, type };
     }))));
     return { name, age, hobbies };
@@ -44,9 +45,9 @@ test("parser combine", () => {
   }
 
   const parsePerson = combine(({ bind }): Person => {
-    const name = bind(field("name", str));
-    const age = bind(field("age", num));
-    const friends = bind(field("friends", list(parsePerson)).optional);
+    const name = bind(parseField("name", parseStr));
+    const age = bind(parseField("age", parseNum));
+    const friends = bind(parseField("friends", parseList(parsePerson)).optional);
     return { name, age, friends };
   });
 
@@ -69,43 +70,43 @@ test("parser combine", () => {
 
 test("parser paths", () => {
   expect(
-    parse(field("a", path), { a: "hello" })
+    parse(parseField("a", path), { a: "hello" })
   ).toEqual(
     ["a"]
   );
 
   expect(
-    parse(field("a", list(path)), { a: ["hello", "world"] })
+    parse(parseField("a", parseList(path)), { a: ["hello", "world"] })
   ).toEqual(
-    [["a", "0"], ["a", "1"]]
+    [["a", 0], ["a", 1]]
   );
 
   expect(
-    parse(field("a", field("b", path)), { a: { b: 1 } })
+    parse(parseField("a", parseField("b", path)), { a: { b: 1 } })
   ).toEqual(
     ["a", "b"]
   );
 
   expect(
-    parse(field("a", combine(({ bind }) => bind(list(field("b", path))))), { a: [{ b: 1 }, { b: 2 }] })
+    parse(parseField("a", combine(({ bind }) => bind(parseList(parseField("b", path))))), { a: [{ b: 1 }, { b: 2 }] })
   ).toEqual(
-    [["a", "0", "b"], ["a", "1", "b"]]
+    [["a", 0, "b"], ["a", 1, "b"]]
   );
 });
 
 test("parser errors", () => {
   expect(
-    parse(str, 42, (error) => ([error.reason, error.path]))
+    parse(parseStr, 42, (error) => ([error.reason, error.path]))
   ).toEqual(
     ["string expected", []]
   );
   expect(
-    parse(num, "hello", (error) => ([error.reason, error.path]))
+    parse(parseNum, "hello", (error) => ([error.reason, error.path]))
   ).toEqual(
     ["number expected", []]
   );
   expect(
-    parse(lit("hello"), "world", (error) => ([error.reason, error.path]))
+    parse(parseLit("hello"), "world", (error) => ([error.reason, error.path]))
   ).toEqual(
     ["expected value hello", []]
   );
@@ -116,50 +117,70 @@ test("parser errors", () => {
     ["expected value null", []]
   );
   expect(
-    parse(obj, "hello", (error) => ([error.reason, error.path]))
+    parse(parseObj, "hello", (error) => ([error.reason, error.path]))
   ).toEqual(
     ["object expected", []]
   );
   expect(
-    parse(field("a", num), {}, (error) => ([error.reason, error.path]))
+    parse(parseField("a", parseNum), {}, (error) => ([error.reason, error.path]))
   ).toEqual(
     ["property 'a' expected", []]
   );
   expect(
-    parse(list(num), "hello", (error) => ([error.reason, error.path]))
+    parse(parseList(parseNum), "hello", (error) => ([error.reason, error.path]))
   ).toEqual(
     ["array expected", []]
   );
 
   expect(
-    parse(list(num), [1, "hello", 3], (error) => ([error.reason, error.path]))
+    parse(parseList(parseNum), [1, "hello", 3], (error) => ([error.reason, error.path]))
   ).toEqual(
-    ["number expected", ["1"]]
+    ["number expected", [1]]
   );
 
   expect(
-    parse(field("a", field("b", num)), { a: {} }, (error) => ([error.reason, error.path]))
+    parse(parseField("a", parseField("b", parseNum)), { a: {} }, (error) => ([error.reason, error.path]))
   ).toEqual(
     ["property 'b' expected", ["a"]]
   );
 
   expect(
-    parse(field("a", list(num)), { a: 'hello' }, (error) => ([error.reason, error.path]))
+    parse(parseField("a", parseList(parseNum)), { a: 'hello' }, (error) => ([error.reason, error.path]))
   ).toEqual(
     ["array expected", ["a"]]
   );
 
   expect(
-    parse(field("a", list(num)), { a: [1, "hello", 3] }, (error) => ([error.reason, error.path]))
+    parse(parseField("a", parseList(parseNum)), { a: [1, "hello", 3] }, (error) => ([error.reason, error.path]))
   ).toEqual(
-    ["number expected", ["a", "1"]]
+    ["number expected", ["a", 1]]
   );
 
   expect(
-    parse(field("a", list(field("b", path))), { a: [{ b: 1 }, { c: 2 }] }, (error) => ([error.reason, error.path]))
+    parse(parseField("a", parseList(parseField("b", path))), { a: [{ b: 1 }, { c: 2 }] }, (error) => ([error.reason, error.path]))
   ).toEqual(
-    ["property 'b' expected", ["a", "1"]]
+    ["property 'b' expected", ["a", 1]]
   );
+
+  const symField = Symbol('symField');
+  expect(
+    parse(
+      parseField(symField, parseNum),
+      { [symField]: "a" },
+      (error) => ([error.reason, error.path])
+    )
+  ).toEqual(
+    ["number expected", [symField]]
+  );
+
+  expect(parse(
+    parseField(symField, parseNum),
+    { "a": 42 },
+    error => ([error.reason, error.path])
+  )).toEqual(
+    ["property 'Symbol(symField)' expected", []]
+  );
+
 });
 
 test("recursive parser", () => {
@@ -169,8 +190,8 @@ test("recursive parser", () => {
   }
 
   const parseRecursive = combine(({ bind }): Recursive => {
-    const value = bind(field("value", str));
-    const next = bind(field("next", parseRecursive));
+    const value = bind(parseField("value", parseStr));
+    const next = bind(parseField("next", parseRecursive));
     return { value, next };
   });
 
@@ -189,12 +210,12 @@ test("recursive parser", () => {
 
 test("union parser", () => {
   expect(
-    parse(list(combine(({ bind }) => {
-      const type = bind(field("type", str));
+    parse(parseList(combine(({ bind }) => {
+      const type = bind(parseField("type", parseStr));
       if (type === "string") {
-        return bind(field("value", str));
+        return bind(parseField("value", parseStr));
       } else if (type === "number") {
-        const value = bind(field("value", num));
+        const value = bind(parseField("value", parseNum));
 
         if (value < 0) {
           return bind(fail("negative number not allowed"));
