@@ -3,11 +3,14 @@
   "private": true,
   "packageManager": "yarn@4.9.2",
   "devDependencies": {
+    "lint-staged": "^16.1.5",
+    "prettier": "^3.6.2",
     "vitepress": "^1.6.4"
   },
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "pre-commit": "lint-staged"
   }
 }

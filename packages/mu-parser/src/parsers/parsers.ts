@@ -1,10 +1,10 @@
 import { combine, Parser, parser } from "../parser";
 
 export const parseStr = parser((target, ctx) => {
-  if (typeof target === 'string') {
+  if (typeof target === "string") {
     return target;
   }
-  throw ctx.parseError('string expected');
+  throw ctx.parseError("string expected");
 });
 
 export const parseLit = <Val extends string | number | null | undefined>(
@@ -21,32 +21,38 @@ export const parseLit = <Val extends string | number | null | undefined>(
 export const parseNull = parseLit(null);
 
 export const parseNum = parser((target, ctx) => {
-  if (typeof target === 'number') {
+  if (typeof target === "number") {
     return target;
   }
-  throw ctx.parseError('number expected');
+  throw ctx.parseError("number expected");
 });
 
 export const parseObj = parser((target, ctx) => {
-  if (typeof target === 'object' && target !== null) {
+  if (typeof target === "object" && target !== null) {
     return target as Record<string | number | symbol, unknown>;
   }
 
-  throw ctx.parseError('object expected');
+  throw ctx.parseError("object expected");
 });
 
-export const parseField = <T>(name: string | number | symbol, fieldParser: Parser<T>) => combine(({ bind }) => {
-  const record = bind(parseObj);
-  const result = bind(parser((target, ctx) => {
-    ctx = ctx.visit(target);
-    if (name in record) {
-      return fieldParser.run(record[name], ctx.pushPath(name));
-    }
-    throw ctx.parseError(`property '${String(name)}' expected`);
-  }));
+export const parseField = <T>(
+  name: string | number | symbol,
+  fieldParser: Parser<T>,
+) =>
+  combine(({ bind }) => {
+    const record = bind(parseObj);
+    const result = bind(
+      parser((target, ctx) => {
+        ctx = ctx.visit(target);
+        if (name in record) {
+          return fieldParser.run(record[name], ctx.pushPath(name));
+        }
+        throw ctx.parseError(`property '${String(name)}' expected`);
+      }),
+    );
 
-  return result;
-});
+    return result;
+  });
 
 export const parseList = <T>(itemParser: Parser<T>): Parser<T[]> =>
   parser((target, ctx) => {
@@ -57,6 +63,5 @@ export const parseList = <T>(itemParser: Parser<T>): Parser<T[]> =>
         return acc;
       }, []);
     }
-    throw ctx.parseError('array expected');
+    throw ctx.parseError("array expected");
   });
-
