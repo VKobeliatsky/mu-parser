@@ -3,22 +3,72 @@
 layout: home
 
 hero:
-  name: "Micro Parser"
-  text: "A Parsec inspired parser library for typescript."
-  tagline: My great project tagline
+  name: "mu-parser"
+  text: "TypeScript-first parser combinators"
+  tagline: Build type-safe parsers that validate unknown data and transform it into well-typed objects
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
+      text: Get Started
+      link: /guide/getting-started
     - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: API Reference
+      link: /api/
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: 🔒 Type-safe
+    details: Full TypeScript support with automatic type inference. Know exactly what types you're working with at compile time.
+  - title: 🧩 Composable
+    details: Build complex parsers from simple, reusable components using functional composition patterns.
+  - title: 🐛 Detailed Errors
+    details: Get precise error reporting with full path information to quickly identify and fix parsing issues.
+  - title: 🎯 Functional
+    details: Clean monadic interface with map, andThen, orElse methods for elegant parser composition.
+  - title: 🔄 Circular Detection
+    details: Automatic detection of circular references prevents infinite loops in recursive data structures.
+  - title: ⚡ Zero Dependencies
+    details: Lightweight library with no external dependencies, perfect for any TypeScript project.
 ---
+
+## Gettings Started
+
+```typescript
+import { parse, combine, parseStr, parseNum, parseField } from "mu-parser";
+
+interface Address {
+  street: string;
+  city: string;
+  zipCode: string;
+}
+
+interface Person {
+  name: string;
+  age: number;
+  address: Address;
+}
+
+const addressParser = combine(({ bind }): Address => {
+  const street: = bind(parseField("street", parseStr));
+  const city = bind(parseField("city", parseStr));
+  const zipCode = bind(parseField("zipCode", parseStr));
+
+  return { street, cite, zipCode };
+});
+
+const personParser = combine(({ bind }): Person => {
+  const name = bind(parseField("name", parseStr));
+  const age = bind(parseField("age", parseNum));
+  const address = bind(parseField("address", addressParser));
+
+  return { name, age, address };
+});
+
+const person = parse(personParser, {
+  name: "John",
+  age: 30,
+  address: {
+    street: "123 Main St",
+    city: "Springfield",
+    zipCode: "12345",
+  },
+});
+```
