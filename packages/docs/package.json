@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "yarn@4.9.2",
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "lint-staged": "^16.1.5",
     "prettier": "^3.6.2",
     "vitepress": "^1.6.4"
@@ -11,6 +12,7 @@
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "pre-commit": "lint-staged"
+    "pre-commit": "lint-staged",
+    "deploy": "gh-pages -d .vitepress/dist"
   }
 }
