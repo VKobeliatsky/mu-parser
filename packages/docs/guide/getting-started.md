@@ -45,7 +45,7 @@ interface User {
 }
 
 // Build a parser for users
-const userParser = combine(({ bind }): User => {
+const userParser = combine<User>(({ bind }) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   return { name, age };
