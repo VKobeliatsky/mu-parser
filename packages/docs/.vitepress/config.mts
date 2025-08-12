@@ -47,5 +47,6 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/your-org/mu-parser' }
     ]
-  }
+  },
+  srcExclude: ["**/README.md"],
 })
