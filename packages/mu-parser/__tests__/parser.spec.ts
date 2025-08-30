@@ -1,4 +1,4 @@
-import { test, expect } from "vitest";
+import { test, expect, describe } from "vitest";
 
 import { parse, combine, path, success, fail } from "../src/parser";
 import {
@@ -204,54 +204,103 @@ test("parser errors", () => {
   ).toEqual(["property 'Symbol(symField)' expected", []]);
 });
 
-test("recursive parser", () => {
-  interface Recursive {
-    value: string;
-    next?: Recursive;
-  }
+describe("recursive parsers", () => {
+  test("deep", () => {
+    interface Recursive {
+      value: string;
+      next?: Recursive;
+    }
 
-  const parseRecursive = combine(({ bind }): Recursive => {
-    const value = bind(parseField("value", parseStr));
-    const next = bind(parseField("next", parseRecursive));
-    return { value, next };
+    const parseRecursive = combine(({ bind }): Recursive => {
+      const value = bind(parseField("value", parseStr));
+      const next = bind(parseField("next", parseRecursive));
+      return { value, next };
+    });
+
+    const input: Recursive = {
+      value: "root",
+    };
+
+    input.next = input;
+
+    expect(
+      parse(parseRecursive, input, (error) => [error.reason, error.path]),
+    ).toEqual(["circular reference detected", ["next"]]);
   });
+  test("same level", () => {
+    const leaf = {
+      foo: "bar",
+    };
+    const parseLeaf = combine(({ bind }) => {
+      const bar = bind(parseField("foo", parseLit("bar")));
+      return { foo: bar };
+    });
 
-  const input: Recursive = {
-    value: "root",
-  };
+    const root = {
+      a: leaf,
+      b: leaf,
+    };
 
-  input.next = input;
+    const result = parse(
+      combine(({ bind }) => {
+        const a = bind(parseField("a", parseLeaf));
+        const b = bind(parseField("b", parseLeaf));
 
-  expect(
-    parse(parseRecursive, input, (error) => [error.reason, error.path]),
-  ).toEqual(["circular reference detected", ["next"]]);
+        return { a, b };
+      }),
+      root,
+    );
+
+    expect(result).toEqual({
+      a: { foo: "bar" },
+      b: { foo: "bar" },
+    });
+  });
 });
 
 test("union parser", () => {
-  expect(
-    parse(
-      parseList(
-        combine(({ bind }) => {
-          const type = bind(parseField("type", parseStr));
-          if (type === "string") {
-            return bind(parseField("value", parseStr));
-          } else if (type === "number") {
-            const value = bind(parseField("value", parseNum));
+  const parser = parseList(
+    combine(({ bind }) => {
+      const type = bind(parseField("type", parseStr));
+      if (type === "string") {
+        const value = bind(parseField("value", parseStr));
+        return {
+          type,
+          value,
+        } as const;
+      } else if (type === "number") {
+        const value = bind(parseField("value", parseNum));
 
-            if (value < 0) {
-              return bind(fail("negative number not allowed"));
-            }
+        if (value < 0) {
+          return bind(fail("negative number not allowed"));
+        }
 
-            return value;
-          } else {
-            return bind(fail("unknown type"));
-          }
-        }),
-      ),
-      [
-        { type: "string", value: "hello" },
-        { type: "number", value: 42 },
-      ],
-    ),
-  ).toEqual(["hello", 42]);
+        return {
+          type,
+          value,
+        } as const;
+      } else {
+        return bind(fail("unknown type"));
+      }
+    }),
+  );
+
+  const result: Array<
+    | {
+        readonly type: "string";
+        readonly value: string;
+      }
+    | {
+        readonly type: "number";
+        readonly value: number;
+      }
+  > = parse(parser, [
+    { type: "string", value: "hello" },
+    { type: "number", value: 42 },
+  ]);
+
+  expect(result).toEqual([
+    { type: "string", value: "hello" },
+    { type: "number", value: 42 },
+  ]);
 });

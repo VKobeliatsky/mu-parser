@@ -1,8 +1,9 @@
 import { combine, Parser, parser } from "../parser";
 
-export const parseStr = parser((target, ctx) => {
+export const parseStr = parser((ctx) => {
+  const target = ctx.input;
   if (typeof target === "string") {
-    return target;
+    return [target, ctx];
   }
   throw ctx.parseError("string expected");
 });
@@ -10,9 +11,10 @@ export const parseStr = parser((target, ctx) => {
 export const parseLit = <Val extends string | number | null | undefined>(
   value: Val,
 ) =>
-  parser((target, ctx) => {
+  parser((ctx) => {
+    const target = ctx.input;
     if (target === value) {
-      return value;
+      return [value, ctx];
     }
 
     throw ctx.parseError(`expected value ${value}`);
@@ -20,16 +22,18 @@ export const parseLit = <Val extends string | number | null | undefined>(
 
 export const parseNull = parseLit(null);
 
-export const parseNum = parser((target, ctx) => {
+export const parseNum = parser((ctx) => {
+  const target = ctx.input;
   if (typeof target === "number") {
-    return target;
+    return [target, ctx];
   }
   throw ctx.parseError("number expected");
 });
 
-export const parseObj = parser((target, ctx) => {
+export const parseObj = parser((ctx) => {
+  const target = ctx.input;
   if (typeof target === "object" && target !== null) {
-    return target as Record<string | number | symbol, unknown>;
+    return [target as Record<string | number | symbol, unknown>, ctx];
   }
 
   throw ctx.parseError("object expected");
@@ -38,14 +42,15 @@ export const parseObj = parser((target, ctx) => {
 export const parseField = <T>(
   name: string | number | symbol,
   fieldParser: Parser<T>,
-) =>
+): Parser<T> =>
   combine(({ bind }) => {
     const record = bind(parseObj);
     const result = bind(
-      parser((target, ctx) => {
-        ctx = ctx.visit(target);
+      parser((ctx) => {
         if (name in record) {
-          return fieldParser.run(record[name], ctx.pushPath(name));
+          const nextTarget = record[name];
+          const [result] = fieldParser.run(ctx.visiting(name, nextTarget));
+          return [result, ctx];
         }
         throw ctx.parseError(`property '${String(name)}' expected`);
       }),
@@ -55,13 +60,17 @@ export const parseField = <T>(
   });
 
 export const parseList = <T>(itemParser: Parser<T>): Parser<T[]> =>
-  parser((target, ctx) => {
-    ctx.visit(target);
+  parser((ctx) => {
+    const target = ctx.input;
     if (target instanceof Array) {
-      return target.reduce<T[]>((acc, item, idx) => {
-        acc.push(itemParser.run(item, ctx.pushPath(idx)));
-        return acc;
-      }, []);
+      return [
+        target.reduce<T[]>((results, item, idx) => {
+          const [res] = itemParser.run(ctx.visiting(idx, item));
+          results.push(res);
+          return results;
+        }, []),
+        ctx,
+      ];
     }
     throw ctx.parseError("array expected");
   });

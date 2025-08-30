@@ -1,31 +1,35 @@
 export interface Parser<T> {
-  run(target: unknown, ctx: ParserCtx): T;
+  run(ctx: ParserState): [T, ParserState];
   andThen<R>(f: (a: T) => Parser<R>): Parser<R>;
   orElse<R>(parser: Parser<R>): Parser<T | R>;
   map<R>(f: (t: T) => R): Parser<R>;
   readonly optional: Parser<undefined | T>;
 }
 
-class ParserCtx {
-  static empty = new ParserCtx();
-  constructor(
-    private readonly path: (string | number | symbol)[] = [],
-    private readonly visited: Set<unknown> = new Set(),
+class ParserState {
+  static empty(input: unknown) {
+    return new ParserState(input, [], new Set());
+  }
+
+  protected constructor(
+    readonly input: unknown,
+    readonly path: ReadonlyArray<string | number | symbol>,
+    private readonly visited: Set<unknown>,
   ) {}
 
   getPath() {
     return [...this.path];
   }
 
-  visit(target: unknown) {
+  visiting(path: string | symbol | number, target: unknown) {
     if (this.visited.has(target)) {
       throw this.parseError("circular reference detected");
     }
-    return new ParserCtx(this.path, new Set([...this.visited, target]));
-  }
-
-  pushPath(name: string | number | symbol) {
-    return new ParserCtx([...this.path, name], this.visited);
+    return new ParserState(
+      target,
+      [...this.path, path],
+      new Set([...this.visited, target]),
+    );
   }
 
   parseError(reason: string) {
@@ -36,50 +40,64 @@ class ParserCtx {
 class ParseError {
   constructor(
     public readonly reason: string,
-    public readonly path: (string | number | symbol)[],
+    public readonly path: ReadonlyArray<string | number | symbol>,
   ) {}
 }
 
 export const parser = <T>(
-  run: (target: unknown, ctx: ParserCtx) => T,
+  run: (ctx: ParserState) => [T, ParserState],
 ): Parser<T> => ({
   run,
-  andThen: (f) =>
-    parser((target, ctx) => {
-      const a = run(target, ctx);
-      return f(a).run(target, ctx);
+  andThen: <R>(f: (a: T) => Parser<R>) =>
+    parser((ctx) => {
+      const [a, newCtx] = run(ctx);
+      return f(a).run(newCtx);
     }),
-  orElse: (p) =>
-    parser((target, ctx) => {
+  orElse: <R>(p: Parser<R>) =>
+    parser((ctx) => {
+      let result: T | R;
+      let nextCtx: ParserState;
+
       try {
-        return run(target, ctx);
+        const [t, tCtx] = run(ctx);
+        result = t;
+        nextCtx = tCtx;
       } catch (e) {
         if (e instanceof ParseError) {
-          return p.run(target, ctx);
+          const [r, rCtx] = p.run(ctx);
+          result = r;
+          nextCtx = rCtx;
+        } else {
+          throw e;
         }
-        throw e;
       }
+
+      return [result, nextCtx];
     }),
 
-  map: (f) => parser((target, ctx) => f(run(target, ctx))),
+  map: (f) =>
+    parser((ctx) => {
+      const [res, newCtx] = run(ctx);
+      return [f(res), newCtx];
+    }),
   get optional() {
     return this.orElse(success(undefined));
   },
 });
 
-export function parse<T>(parser: Parser<T>, target: unknown): T;
+export function parse<T>(parser: Parser<T>, input: unknown): T;
 export function parse<T1, T2>(
   parser: Parser<T1>,
-  target: unknown,
+  input: unknown,
   onError: (error: ParseError) => T2,
 ): T1 | T2;
 export function parse<T1, T2>(
   parser: Parser<T1>,
-  target: unknown,
+  input: unknown,
   onError?: (error: ParseError) => T2,
 ): T1 | T2 {
   try {
-    return parser.run(target, ParserCtx.empty);
+    return parser.run(ParserState.empty(input))[0];
   } catch (e) {
     if (e instanceof ParseError) {
       if (onError) {
@@ -98,16 +116,24 @@ interface CombineCtx {
 }
 
 export const combine = <T>(parsers: (ctx: CombineCtx) => T): Parser<T> =>
-  parser((target, ctx) => {
-    const combineCtx: CombineCtx = {
-      bind: (parser) => parser.run(target, ctx),
-    };
-    return parsers(combineCtx);
+  parser((ctx) => {
+    return [
+      parsers({
+        bind: (parser) => {
+          const [res, newCtx] = parser.run(ctx);
+          ctx = newCtx;
+          return res;
+        },
+      }),
+      ctx,
+    ];
   });
 
-export const path = parser((_, ctx) => ctx.getPath());
-export const success = <T>(val: T) => parser(() => val);
-export const fail = (reason: string) =>
-  parser((_, ctx) => {
+export const path: Parser<ReadonlyArray<string | number | symbol>> = parser(
+  (ctx) => [[...ctx.path] as const, ctx],
+);
+export const success = <T>(val: T): Parser<T> => parser((ctx) => [val, ctx]);
+export const fail = (reason: string): Parser<never> =>
+  parser((ctx) => {
     throw ctx.parseError(reason);
   });
