@@ -52,7 +52,7 @@ const data = {
   ],
 };
 
-const userParser = combine(({ bind }) => ({
+const userParser = combine((bind) => ({
   name: bind(parseField("name", parseStr)),
   age: bind(parseField("age", parseNum)),
 }));
@@ -120,7 +120,7 @@ const parseUserId = parseNum.andThen((id) =>
 ```typescript
 import { path } from "mu-parser";
 
-const debugParser = combine(({ bind }) => {
+const debugParser = combine((bind) => {
   const currentPath = bind(path);
   console.log("Parsing at path:", currentPath);
 

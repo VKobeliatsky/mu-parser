@@ -25,19 +25,16 @@ test("parser simple", () => {
   expect(parse(parseNum, { input: 42 })).toBe(42);
   expect(parse(parseLit("hello"), { input: "hello" })).toBe("hello");
   expect(parse(parseNull, { input: null })).toBe(null);
-  expect(
-    parse(
-      parseStr.orElse(() => success("default")),
-      { input: null },
-    ),
-  ).toBe("default");
+  expect(parse(parseStr.orElse(success("default")), { input: null })).toBe(
+    "default",
+  );
   expect(parse(parseStr.optional, { input: null })).toBe(undefined);
 });
 
 test("parser combine", () => {
   expect(
     parse(
-      combine(({ bind }) => {
+      combine((bind) => {
         const name = bind(parseField("name", parseStr));
         const age = bind(parseField("age", parseNum));
         return `${name} is ${age} years old`;
@@ -48,14 +45,14 @@ test("parser combine", () => {
 
   expect(
     parse(
-      combine(({ bind }) => {
+      combine((bind) => {
         const name = bind(parseField("name", parseStr));
         const age = bind(parseField("age", parseNum));
         const hobbies = bind(
           parseField(
             "hobbies",
             parseList(
-              combine(({ bind }) => {
+              combine((bind) => {
                 const name = bind(parseField("name", parseStr));
                 const type = bind(parseField("type", parseStr).optional);
                 return { name, type };
@@ -85,7 +82,7 @@ test("parser combine", () => {
     friends?: Person[];
   }
 
-  const parsePerson = combine(({ bind }): Person => {
+  const parsePerson = combine((bind): Person => {
     const name = bind(parseField("name", parseStr));
     const age = bind(parseField("age", parseNum));
     const friends = bind(
@@ -137,7 +134,7 @@ test("parser paths", () => {
     parse(
       parseField(
         "a",
-        combine(({ bind }) => bind(parseList(parseField("b", path)))),
+        combine((bind) => bind(parseList(parseField("b", path)))),
       ),
       { input: { a: [{ b: 1 }, { b: 2 }] } },
     ),
@@ -243,7 +240,7 @@ describe("recursive parsers", () => {
       next?: Recursive;
     }
 
-    const parseRecursive = combine(({ bind }): Recursive => {
+    const parseRecursive = combine((bind): Recursive => {
       const value = bind(parseField("value", parseStr));
       const next = bind(parseField("next", parseRecursive));
       return { value, next };
@@ -269,7 +266,7 @@ describe("recursive parsers", () => {
     const leaf = {
       foo: "bar",
     };
-    const parseLeaf = combine(({ bind }) => {
+    const parseLeaf = combine((bind) => {
       const bar = bind(parseField("foo", parseLit("bar")));
       return { foo: bar };
     });
@@ -280,7 +277,7 @@ describe("recursive parsers", () => {
     };
 
     const result = parse(
-      combine(({ bind }) => {
+      combine((bind) => {
         const a = bind(parseField("a", parseLeaf));
         const b = bind(parseField("b", parseLeaf));
 
@@ -298,7 +295,7 @@ describe("recursive parsers", () => {
 
 test("union parser", () => {
   const parser = parseList(
-    combine(({ bind }) => {
+    combine((bind) => {
       const type = bind(parseField("type", parseStr));
       if (type === "string") {
         const value = bind(parseField("value", parseStr));
@@ -349,24 +346,27 @@ describe("user state", () => {
   test("logger", () => {
     const withLogger = withState<string[]>(combine);
     const log = (entry: string) =>
-      withLogger(({ bind }) => {
-        bind(updateState((st) => st.concat(entry)));
+      withLogger((bind) => {
+        bind(updateState((entries) => entries.concat(entry)));
         return undefined;
       });
 
-    const parserStrOrLog = withLogger(({ bind }) => {
+    const parserStrOrLog = withLogger((bind) => {
       const x = bind(
-        parseStr.orElse((err) =>
+        parseStr.recover((err) =>
           log(`string expected at: [${err.path.join(", ")}]`),
         ),
       );
       const logs = bind(getState());
-      return [x, logs];
+      return [x, logs] as const;
     });
 
-    expect(parse(parserStrOrLog, { input: 42, initialState: [] })).toEqual([
-      undefined,
-      ["string expected at: []"],
-    ]);
+    const [result, entries] = parse(parserStrOrLog, {
+      input: 42,
+      initialState: [],
+    });
+
+    expect(result).toEqual(undefined);
+    expect(entries).toEqual(["string expected at: []"]);
   });
 });

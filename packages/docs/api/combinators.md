@@ -102,7 +102,7 @@ parse(optionalEmail, "user@example.com"); // "user@example.com"
 parse(optionalEmail, null); // undefined
 
 // In object parsing
-const userParser = combine(({ bind }) => ({
+const userParser = combine((bind) => ({
   name: bind(parseField("name", parseStr)),
   email: bind(parseField("email", parseStr).optional),
   phone: bind(parseField("phone", parseStr).optional),
@@ -123,7 +123,7 @@ The `combine` function is the primary way to build complex parsers from simpler 
 
 ```typescript
 // Basic object parsing
-const userParser = combine(({ bind }) => {
+const userParser = combine((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const email = bind(parseField("email", parseStr).optional);
@@ -132,7 +132,7 @@ const userParser = combine(({ bind }) => {
 });
 
 // Conditional logic within combine
-const configParser = combine(({ bind }) => {
+const configParser = combine((bind) => {
   const env = bind(parseField("env", parseStr));
   const port = bind(parseField("port", parseNum));
 
@@ -148,12 +148,12 @@ const configParser = combine(({ bind }) => {
 });
 
 // Nested combine blocks
-const personParser = combine(({ bind }) => {
+const personParser = combine((bind) => {
   const name = bind(parseField("name", parseStr));
   const address = bind(
     parseField(
       "address",
-      combine(({ bind }) => ({
+      combine((bind) => ({
         street: bind(parseField("street", parseStr)),
         city: bind(parseField("city", parseStr)),
         zipCode: bind(parseField("zipCode", parseStr)),
@@ -186,7 +186,7 @@ interface CombineCtx {
 
 ```typescript
 // Dynamic parsing based on previous results
-const dynamicParser = combine(({ bind }) => {
+const dynamicParser = combine((bind) => {
   const type = bind(parseField("type", parseStr));
 
   switch (type) {
@@ -207,7 +207,7 @@ const dynamicParser = combine(({ bind }) => {
 });
 
 // Validation within combine
-const validatedUserParser = combine(({ bind }) => {
+const validatedUserParser = combine((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const email = bind(parseField("email", parseStr));

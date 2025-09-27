@@ -45,7 +45,7 @@ interface User {
 }
 
 // Build a parser for users
-const userParser = combine<User>(({ bind }) => {
+const userParser = combine<User>((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   return { name, age };
@@ -91,7 +91,7 @@ const users = parse(usersParser, [
 Handle optional data:
 
 ```typescript
-const configParser = combine(({ bind }) => {
+const configParser = combine((bind) => {
   const host = bind(parseField("host", parseStr));
   const port = bind(parseField("port", parseNum).optional); // Optional!
   return {
@@ -143,12 +143,12 @@ interface Person {
   address: Address;
 }
 
-const addressParser = combine<Address>(({ bind }) => ({
+const addressParser = combine<Address>((bind) => ({
   street: bind(parseField("street", parseStr)),
   city: bind(parseField("city", parseStr)),
 }));
 
-const personParser = combine<Person>(({ bind }) => ({
+const personParser = combine<Person>((bind) => ({
   name: bind(parseField("name", parseStr)),
   address: bind(parseField("address", addressParser)),
 }));

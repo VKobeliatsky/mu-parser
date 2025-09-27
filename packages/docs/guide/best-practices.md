@@ -24,7 +24,7 @@ const parseEmail = parseStr.andThen((str) => {
 });
 
 // Now use them everywhere
-const userParser = combine(({ bind }) => ({
+const userParser = combine((bind) => ({
   name: bind(parseField("name", parseNonEmptyString)),
   age: bind(parseField("age", parsePositiveNumber)),
   email: bind(parseField("email", parseEmail)),
@@ -48,7 +48,7 @@ interface UserPreferences {
 }
 
 // ✅ Good: Explicit return type
-const parseUserPreferences = combine<UserPreferences>(({ bind }) => {
+const parseUserPreferences = combine<UserPreferences>((bind) => {
   const theme = bind(
     parseField("theme", parseLit("light").orElse(parseLit("dark"))),
   );
@@ -57,7 +57,7 @@ const parseUserPreferences = combine<UserPreferences>(({ bind }) => {
 });
 
 // ✅ Good: Explicit return type catches mismatches
-const parseUser = combine<User>(({ bind }) => {
+const parseUser = combine<User>((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const preferences = bind(parseField("preferences", parseUserPreferences));
@@ -71,7 +71,7 @@ Break complex parsers into smaller, focused pieces:
 
 ```typescript
 // ❌ Bad: One giant parser
-const messyParser = combine(({ bind }) => {
+const messyParser = combine((bind) => {
   const name = bind(
     parseField(
       "name",
@@ -107,7 +107,7 @@ const parseAdultAge = parseNum.andThen((age) =>
   age >= 18 ? success(age) : fail("Must be 18 or older"),
 );
 
-const userParser = combine(({ bind }) => ({
+const userParser = combine((bind) => ({
   name: bind(parseField("name", parseName)),
   email: bind(parseField("email", parseEmail)),
   age: bind(parseField("age", parseAdultAge)),
@@ -278,12 +278,12 @@ Handle schema changes gracefully:
 
 ```typescript
 // Support multiple versions
-const parseUserV1 = combine(({ bind }) => ({
+const parseUserV1 = combine((bind) => ({
   name: bind(parseField("name", parseStr)),
   age: bind(parseField("age", parseNum)),
 }));
 
-const parseUserV2 = combine(({ bind }) => ({
+const parseUserV2 = combine((bind) => ({
   name: bind(parseField("name", parseStr)),
   age: bind(parseField("age", parseNum)),
   email: bind(parseField("email", parseEmail).optional), // New optional field

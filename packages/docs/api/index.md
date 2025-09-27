@@ -77,7 +77,7 @@ function combine<T>(parsers: (ctx: CombineCtx) => T): Parser<T>;
 **Example:**
 
 ```typescript
-const userParser = combine(({ bind }) => {
+const userParser = combine((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   return { name, age };

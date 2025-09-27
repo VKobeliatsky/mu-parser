@@ -38,7 +38,7 @@ interface Person {
   address: Address;
 }
 
-const addressParser = combine(({ bind }): Address => {
+const addressParser = combine<Address>((bind) => {
   const street: = bind(parseField("street", parseStr));
   const city = bind(parseField("city", parseStr));
   const zipCode = bind(parseField("zipCode", parseStr));
@@ -46,7 +46,7 @@ const addressParser = combine(({ bind }): Address => {
   return { street, cite, zipCode };
 });
 
-const personParser = combine(({ bind }): Person => {
+const personParser = combine<Person>((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const address = bind(parseField("address", addressParser));
@@ -97,7 +97,7 @@ interface User {
   hobbies: string[];
 }
 
-const userParser = combine(({ bind }): User => {
+const userParser = combine<User>((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const hobbies = bind(parseField("hobbies", parseList(parseStr)));
@@ -198,7 +198,7 @@ const statusParser = parseLit("active").orElse(parseLit("inactive"));
 const status = parse(statusParser, "active"); // "active"
 
 // Optional fields
-const configParser = combine(({ bind }) => {
+const configParser = combine((bind) => {
   const host = bind(parseField("host", parseStr));
   const port = bind(parseField("port", parseNum).optional);
   return { host, port: port ?? 3000 };
@@ -220,21 +220,17 @@ interface Person {
   address: Address;
 }
 
-const addressParser = combine(
-  ({ bind }): Address => ({
-    street: bind(parseField("street", parseStr)),
-    city: bind(parseField("city", parseStr)),
-    zipCode: bind(parseField("zipCode", parseStr)),
-  }),
-);
+const addressParser = combine<Address>((bind) => ({
+  street: bind(parseField("street", parseStr)),
+  city: bind(parseField("city", parseStr)),
+  zipCode: bind(parseField("zipCode", parseStr)),
+}));
 
-const personParser = combine(
-  ({ bind }): Person => ({
-    name: bind(parseField("name", parseStr)),
-    age: bind(parseField("age", parseNum)),
-    address: bind(parseField("address", addressParser)),
-  }),
-);
+const personParser = combine<Person>((bind) => ({
+  name: bind(parseField("name", parseStr)),
+  age: bind(parseField("age", parseNum)),
+  address: bind(parseField("address", addressParser)),
+}));
 
 const person = parse(personParser, {
   name: "John",
@@ -257,7 +253,7 @@ const tagsParser = parseList(parseStr);
 const tags = parse(tagsParser, ["typescript", "parsing", "validation"]);
 
 // Array of objects
-const itemParser = combine(({ bind }) => ({
+const itemParser = combine((bind) => ({
   id: bind(parseField("id", parseNum)),
   name: bind(parseField("name", parseStr)),
   price: bind(parseField("price", parseNum)),
@@ -285,15 +281,15 @@ interface NumberValue {
 
 type Value = StringValue | NumberValue;
 
-const valueParser = combine(({ bind }): Value => {
+const valueParser = combine<Value>((bind) => {
   const type = bind(parseField("type", parseStr));
 
   if (type === "string") {
     const value = bind(parseField("value", parseStr));
-    return { type: "string", value };
+    return { type: "string", value } as const;
   } else if (type === "number") {
     const value = bind(parseField("value", parseNum));
-    return { type: "number", value };
+    return { type: "number", value } as const;
   } else {
     return bind(fail(`Unknown type: ${type}`));
   }
@@ -311,7 +307,7 @@ interface TreeNode {
   children?: TreeNode[];
 }
 
-const treeParser = combine(({ bind }): TreeNode => {
+const treeParser = combine<TreeNode>((bind) => {
   const value = bind(parseField("value", parseStr));
   const children = bind(parseField("children", parseList(treeParser)).optional);
   return { value, children };
@@ -369,7 +365,7 @@ const data = {
 const usersParser = parseField(
   "users",
   parseList(
-    combine(({ bind }) => ({
+    combine((bind) => ({
       name: bind(parseField("name", parseStr)),
       age: bind(parseField("age", parseNum)),
     })),
@@ -416,7 +412,7 @@ const parseNonEmptyString = parseStr.andThen((s) =>
 
 ```typescript
 // Be explicit about return types for complex parsers
-const parseUser = combine(({ bind }): User => {
+const parseUser = combine((bind): User => {
   // implementation
 });
 ```

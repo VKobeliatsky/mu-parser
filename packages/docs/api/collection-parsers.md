@@ -123,7 +123,7 @@ const data = {
 const usersParser = parseField(
   "users",
   parseList(
-    combine(({ bind }) => ({
+    combine((bind) => ({
       name: bind(parseField("name", parseStr)),
       age: bind(parseField("age", parseNum)),
     })),
@@ -148,13 +148,13 @@ parse(matrixParser, [
 ]); // number[][]
 
 // Objects with nested arrays
-const classParser = combine(({ bind }) => ({
+const classParser = combine((bind) => ({
   name: bind(parseField("name", parseStr)),
   students: bind(
     parseField(
       "students",
       parseList(
-        combine(({ bind }) => ({
+        combine((bind) => ({
           name: bind(parseField("name", parseStr)),
           grades: bind(parseField("grades", parseList(parseNum))),
         })),

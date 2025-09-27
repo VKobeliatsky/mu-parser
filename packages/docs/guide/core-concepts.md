@@ -73,7 +73,7 @@ The `combine` function lets you build complex parsers by binding multiple parser
 ```typescript
 import { combine, parseField } from "mu-parser";
 
-const userParser = combine(({ bind }) => {
+const userParser = combine((bind) => {
   const name = bind(parseField("name", parseStr));
   const age = bind(parseField("age", parseNum));
   const email = bind(parseField("email", parseStr).optional);
@@ -120,7 +120,7 @@ interface Node {
   next?: Node;
 }
 
-const nodeParser = combine(({ bind }): Node => {
+const nodeParser = combine((bind): Node => {
   const value = bind(parseField("value", parseStr));
   const next = bind(parseField("next", nodeParser).optional);
   return { value, next };
@@ -141,7 +141,7 @@ mu-parser provides excellent TypeScript integration:
 
 ```typescript
 // Types are automatically inferred
-const userParser = combine(({ bind }) => {
+const userParser = combine((bind) => {
   const name = bind(parseField("name", parseStr)); // string
   const age = bind(parseField("age", parseNum)); // number
   const tags = bind(parseField("tags", parseList(parseStr))); // string[]
