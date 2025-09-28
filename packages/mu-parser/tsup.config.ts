@@ -1,9 +1,10 @@
 import { defineConfig } from "tsup";
 
+const entries = ["src/index.ts"];
 export default defineConfig([
   // CommonJS build
   {
-    entry: ["src/index.ts"],
+    entry: entries,
     format: ["cjs"],
     dts: true,
     clean: true,
@@ -14,7 +15,7 @@ export default defineConfig([
   },
   // ESM build
   {
-    entry: ["src/index.ts"],
+    entry: entries,
     format: ["esm"],
     dts: true,
     clean: true,
@@ -26,7 +27,7 @@ export default defineConfig([
   },
   // Browser IIFE build
   {
-    entry: ["src/index.ts"],
+    entry: entries,
     format: ["iife"],
     globalName: "MuParser",
     clean: true,
