@@ -3,8 +3,13 @@ import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier/flat";
 
 export default tseslint.config(
+  { ignores: ["dist/**/*"] },
   {
-    ignores: ["dist/**/*"],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: "./",
+      },
+    },
   },
   js.configs.recommended,
   tseslint.configs.recommended,

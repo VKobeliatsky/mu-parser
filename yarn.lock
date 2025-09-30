@@ -3546,6 +3546,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"mu-parser-test@workspace:packages/mu-parser-test":
+  version: 0.0.0-use.local
+  resolution: "mu-parser-test@workspace:packages/mu-parser-test"
+  dependencies:
+    "@eslint/js": "npm:^9.33.0"
+    eslint: "npm:^9.33.0"
+    eslint-config-prettier: "npm:^10.1.8"
+    globals: "npm:^16.3.0"
+    jiti: "npm:^2.5.1"
+    lint-staged: "npm:^16.1.5"
+    mu-parser: "workspace:^"
+    prettier: "npm:^3.6.2"
+    typescript: "npm:^5.9.2"
+    typescript-eslint: "npm:^8.39.1"
+    vitest: "npm:^3.2.4"
+  languageName: unknown
+  linkType: soft
+
 "mu-parser-workspace@workspace:.":
   version: 0.0.0-use.local
   resolution: "mu-parser-workspace@workspace:."
@@ -3554,7 +3572,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"mu-parser@workspace:packages/mu-parser":
+"mu-parser@workspace:^, mu-parser@workspace:packages/mu-parser":
   version: 0.0.0-use.local
   resolution: "mu-parser@workspace:packages/mu-parser"
   dependencies:
