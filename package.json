@@ -1,5 +1,6 @@
 {
   "name": "mu-parser-workspace",
+  "type": "module",
   "private": true,
   "packageManager": "yarn@4.9.2",
   "workspaces": [
@@ -8,7 +9,10 @@
   "scripts": {
     "postinstall": "husky install",
     "pre-commit": "yarn workspaces foreach -A run pre-commit",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build": "yarn workspaces foreach -Apt run build",
+    "test": "yarn workspaces foreach -Apt run test",
+    "dev": "yarn workspace mu-parser run dev & yarn workspace mu-parser-test run dev"
   },
   "devDependencies": {
     "husky": "^9.1.7"

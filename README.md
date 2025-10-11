@@ -39,7 +39,7 @@ interface Person {
 }
 
 const addressParser = combine<Address>((bind) => {
-  const street: = bind(parseField("street", parseStr));
+  const street = bind(parseField("street", parseStr));
   const city = bind(parseField("city", parseStr));
   const zipCode = bind(parseField("zipCode", parseStr));
 

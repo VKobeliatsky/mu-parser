@@ -3,7 +3,8 @@
   "private": true,
   "packageManager": "yarn@4.9.2",
   "scripts": {
-    "test": "vitest --run",
+    "test": "vitest --run --project mu-parser-test",
+    "dev": "vitest --project mu-parser-test",
     "lint": "eslint",
     "pre-commit": "lint-staged"
   },

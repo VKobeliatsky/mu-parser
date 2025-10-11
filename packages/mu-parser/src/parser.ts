@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { attempt, toJsonPointerRefToken } from "./utils";
 import { ParserError } from "./parser-error";
-import { parserError, parserResult } from "./parser-ops";
+import { err, ok } from "./parser-result";
 import { ParserState } from "./parser-state";
 
-export type ParserResult<T, S> = readonly [T, ParserState<S>];
+type ParserResult<T, S> = readonly [T, ParserState<S>];
 
 export interface Parser<T, S> {
   run(ctx: ParserState<S>): ParserResult<T, S>;
@@ -15,25 +15,25 @@ export interface Parser<T, S> {
 }
 
 export const parser = <T, S = any>(
-  run: (ctx: ParserState<S>) => ParserResult<T, S>,
+  run: (st: ParserState<S>) => ParserResult<T, S>,
 ): Parser<T, S> => {
   const self: Parser<T, S> = {
     run,
     map: (f) =>
       parser((ctx) => {
         const [res, newCtx] = run(ctx);
-        return parserResult(f(res), newCtx);
+        return ok(f(res), newCtx);
       }),
     andThen: <R>(f: (a: T) => Parser<R, S>) =>
-      parser((ctx) => {
-        const [a, newCtx] = run(ctx);
-        return f(a).run(newCtx);
+      parser((st) => {
+        const [a, newSt] = run(st);
+        return f(a).run(newSt);
       }),
     recover: <R>(fn: (err: ParserError) => Parser<R, S>): Parser<T | R, S> =>
-      parser((ctx) =>
-        ParserError.attempt<readonly [T | R, ParserState<S>]>(
-          () => run(ctx),
-          (e) => fn(e).run(ctx),
+      parser((st) =>
+        attempt<ParserResult<T | R, S>>(
+          () => run(st),
+          ParserError.recover((e) => fn(e).run(st)),
         ),
       ),
     orElse: <R>(other: Parser<R, S>) => self.recover(() => other),
@@ -45,6 +45,11 @@ export const parser = <T, S = any>(
   return self;
 };
 
+/**
+ * @example
+ * declare const parser: Parser<R, S>
+ * const r: R = bind(parser)
+ */
 interface ParserBind<S> {
   <R>(parser: Parser<R, S>): R;
 }
@@ -53,7 +58,7 @@ export const combine = <T, S = void>(
   parsers: (bind: ParserBind<S>) => T,
 ): Parser<T, S> =>
   parser((state) =>
-    parserResult(
+    ok(
       parsers((parser) => {
         const [res, nextState] = parser.run(state);
         state = nextState;
@@ -63,15 +68,15 @@ export const combine = <T, S = void>(
     ),
   );
 
-export function parse<T>(
+export function runParser<T>(
   parser: Parser<T, void>,
   params: { input: unknown },
 ): T;
-export function parse<T, S>(
+export function runParser<T, S>(
   parser: Parser<T, S>,
   params: { input: unknown; initialState: S },
 ): T;
-export function parse<T1, T2>(
+export function runParser<T1, T2>(
   parser: Parser<T1, void>,
   params: { input: unknown },
   onError: (error: {
@@ -79,7 +84,7 @@ export function parse<T1, T2>(
     path: ReadonlyArray<string | number | symbol>;
   }) => T2,
 ): T1 | T2;
-export function parse<T1, T2, S>(
+export function runParser<T1, T2, S>(
   parser: Parser<T1, S>,
   params: { input: unknown; initialState: S },
   onError: (error: {
@@ -87,7 +92,7 @@ export function parse<T1, T2, S>(
     path: ReadonlyArray<string | number | symbol>;
   }) => T2,
 ): T1 | T2;
-export function parse<T1, T2, S>(
+export function runParser<T1, T2, S>(
   parser: Parser<T1, S | void>,
   { input, initialState }: { input: unknown; initialState?: S },
   onError?: (error: {
@@ -95,37 +100,43 @@ export function parse<T1, T2, S>(
     path: ReadonlyArray<string | number | symbol>;
   }) => T2,
 ): T1 | T2 {
-  return ParserError.attempt<T1 | T2>(
+  return attempt<T1 | T2>(
     () => parser.run(ParserState.empty(input, initialState))[0],
-    (error) => {
+    ParserError.recover(({ reason, path }) => {
       if (onError) {
-        return onError({ reason: error.reason, path: error.path });
+        return onError({ reason, path });
       }
-      throw new Error(
-        `Parse error: ${error.reason} at path ${error.path.map((p) => `'${String(p)}'`).join(".")}`,
-      );
-    },
+      const prettyPath = path.map(toJsonPointerRefToken).join("");
+
+      throw new Error(`${reason} at path "${prettyPath}"`);
+    }),
   );
 }
+
+export const input: Parser<unknown, any> = parser((state) =>
+  ok(state.input, state),
+);
+
+export const success = <T, S>(val: T): Parser<T, S> =>
+  parser((ctx) => ok(val, ctx));
+
+export const fail = <S>(reason: string): Parser<never, S> =>
+  parser((ctx) => err(reason, ctx));
 
 export const path = parser<ReadonlyArray<string | number | symbol>>((ctx) => [
   [...ctx.path] as const,
   ctx,
 ]);
-export const success = <T, S>(val: T): Parser<T, S> =>
-  parser((ctx) => parserResult(val, ctx));
-export const fail = <S>(reason: string): Parser<never, S> =>
-  parser((ctx) => parserError(reason, ctx));
 
 export const updateState = <S>(updater: (state: S) => S) => {
   return parser<S, S>((ctx) => {
     const newCtx = ctx.updateState(updater);
-    return parserResult(newCtx.state, newCtx);
+    return ok(newCtx.state, newCtx);
   });
 };
 
-export const getState = <S>() => parser<S, S>((ctx) => [ctx.state, ctx]);
+export const getState = <S>() => parser<S, S>((st) => [st.state, st]);
 
 export const withState = <S>(
-  _combine: <T>(parsers: (ctx: ParserBind<S>) => T) => Parser<T, S>,
+  _combine: <T>(parsers: (bind: ParserBind<S>) => T) => Parser<T, S>,
 ) => _combine;

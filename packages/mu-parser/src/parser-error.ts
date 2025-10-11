@@ -1,17 +1,13 @@
-export class ParserError {
-  static attempt<T>(fn: () => T, recover: (e: ParserError) => T): T {
-    try {
-      return fn();
-    } catch (error) {
-      if (error instanceof ParserError) {
-        return recover(error);
-      } else {
-        throw error;
-      }
-    }
-  }
+import { recover } from "./utils";
+
+export class ParserError extends Error {
+  static readonly recover = recover(ParserError);
+
   constructor(
     public readonly reason: string,
     public readonly path: ReadonlyArray<string | number | symbol>,
-  ) {}
+  ) {
+    super(reason);
+    this.name = "ParserError";
+  }
 }

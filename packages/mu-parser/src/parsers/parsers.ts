@@ -1,12 +1,12 @@
 import { combine, Parser, parser } from "../parser";
-import { parserError, parserResult } from "../parser-ops";
+import { err, ok } from "../parser-result";
 
 export const parseStr = parser<string>((ctx) => {
   const target = ctx.input;
   if (typeof target === "string") {
-    return parserResult(target, ctx);
+    return ok(target, ctx);
   }
-  return parserError("string expected", ctx);
+  return err("string expected", ctx);
 });
 
 export const parseLit = <Val extends string | number | null | undefined>(
@@ -15,10 +15,10 @@ export const parseLit = <Val extends string | number | null | undefined>(
   parser((ctx) => {
     const target = ctx.input;
     if (target === value) {
-      return parserResult(value, ctx);
+      return ok(value, ctx);
     }
 
-    return parserError(`expected value ${value}`, ctx);
+    return err(`expected value "${value}"`, ctx);
   });
 
 export const parseNull = parseLit(null);
@@ -26,22 +26,19 @@ export const parseNull = parseLit(null);
 export const parseNum = parser((ctx) => {
   const target = ctx.input;
   if (typeof target === "number") {
-    return parserResult(target, ctx);
+    return ok(target, ctx);
   }
-  return parserError("number expected", ctx);
+  return err("number expected", ctx);
 });
 
 export const parseObj = parser<Record<string | number | symbol, unknown>>(
   (ctx) => {
     const target = ctx.input;
     if (typeof target === "object" && target !== null) {
-      return parserResult(
-        target as Record<string | number | symbol, unknown>,
-        ctx,
-      );
+      return ok(target as Record<string | number | symbol, unknown>, ctx);
     }
 
-    return parserError("object expected", ctx);
+    return err("object expected", ctx);
   },
 );
 
@@ -56,12 +53,12 @@ export const parseField = <T, S>(
         if (name in record) {
           const nextTarget = record[name];
           if (ctx.visited.has(nextTarget)) {
-            return parserError("circular reference detected", ctx);
+            return err("circular reference detected", ctx);
           }
           const [result] = fieldParser.run(ctx.visiting(name, nextTarget));
-          return parserResult(result, ctx);
+          return ok(result, ctx);
         }
-        return parserError(`property '${String(name)}' expected`, ctx);
+        return err(`property '${String(name)}' expected`, ctx);
       }),
     );
 
@@ -72,7 +69,7 @@ export const parseList = <T, S>(itemParser: Parser<T, S>): Parser<T[], S> =>
   parser((ctx) => {
     const target = ctx.input;
     if (target instanceof Array) {
-      return parserResult(
+      return ok(
         target.reduce<T[]>((results, item, idx) => {
           const [res] = itemParser.run(ctx.visiting(idx, item));
           results.push(res);
@@ -81,5 +78,5 @@ export const parseList = <T, S>(itemParser: Parser<T, S>): Parser<T[], S> =>
         ctx,
       );
     }
-    return parserError("array expected", ctx);
+    return err("array expected", ctx);
   });

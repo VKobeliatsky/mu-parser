@@ -12,8 +12,9 @@
     "README.md"
   ],
   "scripts": {
-    "test": "vitest --run",
+    "test": "vitest --run --project mu-parser",
     "build": "tsup",
+    "dev": "tsup --watch",
     "lint": "eslint",
     "pre-commit": "lint-staged"
   },
